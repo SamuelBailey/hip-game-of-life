@@ -2,9 +2,10 @@
 
 class Grid{
 public:
-    bool* h_grid;
+    bool *h_grid;
 private:
-    bool* d_grid;
+    bool *d_grid;
+    size_t d_grid_pitch;
     int x_dim;
     int y_dim;
 
@@ -21,6 +22,7 @@ public:
     ~Grid();
 
     void step_forwards(int n_steps);
+    bool *get_host_grid();
     /**
      * @brief Updates the host grid with the data stored on the device
      */
