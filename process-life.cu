@@ -1,3 +1,7 @@
+/**
+ * Copyright (C) 2022 Samuel Bailey
+ */
+
 #include <iostream>
 #include "process-life.h"
 

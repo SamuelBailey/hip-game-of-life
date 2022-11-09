@@ -1,3 +1,7 @@
+/**
+ * Copyright (C) 2022 Samuel Bailey
+ */
+
 #pragma once
 
 namespace GridProc {

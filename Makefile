@@ -1,3 +1,5 @@
+# Copyright (C) 2022 Samuel Bailey
+
 HIPIFY=hipify-clang
 CXX=hipcc
 
