@@ -3,7 +3,7 @@
 namespace GridProc {
 
 __global__
-void compute_cell(bool *initial_state, bool *final_state);
+void compute_cell(bool *initial_state, size_t initial_pitch, bool *final_state, size_t final_pitch);
 
 } /* namespace GridProc */
 
@@ -17,15 +17,15 @@ private:
     bool *d_next_grid;
     size_t d_next_grid_pitch;
 
-    int x_dim;
-    int y_dim;
+    int h_grid_cols;
+    int h_grid_rows;
 
 public:
     /**
      * @brief Construct a new Grid object. The grid is indexed from top left
      * 
-     * @param x_size 
-     * @param y_size 
+     * @param x_size number of columns
+     * @param y_size number of rows
      */
     Grid(int x_size, int y_size, bool *initial_state=nullptr);
 
