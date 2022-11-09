@@ -34,9 +34,6 @@ TEST_HEADERS = $(wildcard tests/*.h) $(wildcard tests/*.hpp)
 TEST_CPPS = $(wildcard tests/*.cpp)
 TEST_OBJS = $(TEST_CPPS:.cpp=.o)
 
-tests/%.o: %.cpp $(TEST_HEADERS) $(HEADERS)
-	$(CXX) -c -o $@ $<
-
 OBJS_NO_MAIN = $(filter-out main.o,$(OBJS))
 
 test: $(TEST_OBJS) $(OBJS_NO_MAIN)
