@@ -7,6 +7,7 @@
 #include <tuple>
 #include <regex>
 #include <iostream>
+#include <filesystem>
 #include "read-file.h"
 
 /**
@@ -81,4 +82,44 @@ file::read_into_arr(const std::string &filename, int &x_len, int &y_len) {
     x_len = x;
     y_len = y;
     return std::make_tuple(true, std::move(arr));
+}
+
+
+bool file::write_arr_to_file(const bool *arr, int x_len, int y_len, const std::string &filepath, bool overwrite) {
+    std::filesystem::path file_p = filepath;
+
+    if (!overwrite && std::filesystem::exists(file_p)) {
+        std::filesystem::path new_file_p = file_p;
+        std::string extension = "";
+        if (file_p.has_extension()) {
+            extension = file_p.extension();
+            file_p = file_p.replace_extension("");
+        }
+
+        int suffix_num = 0;
+        do {
+            new_file_p = file_p.string() + "(" + std::to_string(++suffix_num) + ")" + extension;
+
+        } while (std::filesystem::exists(new_file_p));
+        file_p = new_file_p;
+    }
+
+    std::ofstream out_file(file_p);
+    
+    // Write the x and y lengths
+    out_file << x_len << std::endl;
+    out_file << y_len << std::endl;
+
+    for (int j = 0; j < y_len; j++) {
+        std::string line(x_len, EMPTY_CHAR);
+        for (int i = 0; i < x_len; i++) {
+            if (arr[i + (j * x_len)]) {
+                line[i] = FULL_CHAR;
+            }
+        }
+        out_file << line << std::endl;
+    }
+
+    std::cout << "Wrote to file: " << file_p << std::endl;
+    return true;
 }

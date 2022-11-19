@@ -29,4 +29,18 @@ namespace file{
 std::tuple<bool, std::unique_ptr<bool[]>>
 read_into_arr(const std::string &filename, int &x_len, int &y_len);
 
+/**
+ * @brief Writes array to file
+ * 
+ * @param arr 
+ * @param x_len 
+ * @param y_len 
+ * @param filename 
+ * @param overwrite Whether or not to overwrite an existing file. If false
+ * will increment a counter at the end of the filename
+ * @return true 
+ * @return false 
+ */
+bool write_arr_to_file(const bool *arr, int x_len, int y_len, const std::string &filename, bool overwrite=false);
+
 } /* namespace file */

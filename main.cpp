@@ -20,4 +20,6 @@ int main(int argc, char **argv) {
 
     Grid grid(x_len, y_len, arr.get());
 
+    file::write_arr_to_file(arr.get(), x_len, y_len, "data/outputs/test1.txt");
+
 }

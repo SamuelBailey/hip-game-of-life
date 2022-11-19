@@ -44,3 +44,7 @@ TEST_CASE("load file") {
         }
     }
 }
+
+TEST_CASE("overwrite file") {
+    REQUIRE(file::write_arr_to_file(nullptr, 0, 0, "tests/data/test1.txt"));
+}
