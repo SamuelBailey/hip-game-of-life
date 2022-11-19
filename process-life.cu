@@ -3,6 +3,7 @@
  */
 
 #include <iostream>
+#include <memory>
 #include "process-life.h"
 
 #define GRID_VALUE(arr, col, row, pitch) \
@@ -10,9 +11,10 @@
 
 __global__
 void GridProc::compute_cell(bool *initial_state, size_t initial_pitch, bool *final_state, size_t final_pitch) {
-    // For now, assume there are enough processors to have 1 for each cell    
-    int column = (blockIdx.x * blockDim.x) + threadIdx.x;
-    int row = (blockIdx.y * blockDim.y) + threadIdx.y;
+    // For now, assume there are enough processors to have 1 for each cell
+    // Need to start at [1, 1] instead of [0, 0] because of the boundaries
+    int column = (blockIdx.x * blockDim.x) + threadIdx.x + 1;
+    int row = (blockIdx.y * blockDim.y) + threadIdx.y + 1;
 
     unsigned int count = 0;
     for (int i = -1; i <= 1; i++) {
@@ -50,11 +52,28 @@ Grid::Grid(int x_size, int y_size, bool *initial_state) {
     h_grid_cols = x_size + 2;
     h_grid_rows = y_size + 2;
 
+    // Malloc grids
     cudaMallocPitch(reinterpret_cast<void **>(&d_grid), &d_grid_pitch, h_grid_cols * sizeof(bool), h_grid_rows);
     cudaMallocPitch(reinterpret_cast<void **>(&d_next_grid), &d_next_grid_pitch, h_grid_cols * sizeof(bool), h_grid_rows);
+    cudaMallocHost(reinterpret_cast<void **>(&h_grid), h_grid_rows * h_grid_cols * sizeof(bool));
 
+    // Clear grids
+    cudaMemset2D(d_grid, d_grid_pitch, false, h_grid_cols * sizeof(bool), h_grid_rows);
+    cudaMemset2D(d_next_grid, d_grid_pitch, false, h_grid_cols * sizeof(bool), h_grid_rows);
+    cudaMemset(h_grid, false, h_grid_rows * h_grid_cols * sizeof(bool));
+
+    // Populate grids
     if (initial_state != nullptr) {
-        // TODO: Copy data if not nullptr
+        
+        // First copy into h_grid, which has the same dimensions as d_grid
+        for (int j = 0; j < y_size; j++) {
+            // Copy each row using memcpy
+            memcpy(&h_grid[1 + (j+1)*h_grid_cols], &initial_state[j * x_size], x_size);
+        }
+
+        // Copy host grid to the device
+        cudaMemcpy2D(d_grid, d_grid_pitch, initial_state, h_grid_cols * sizeof(bool), h_grid_cols, h_grid_rows, cudaMemcpyHostToDevice);
+
         std::cout << "copied initial state" << std::endl;
     } else {
         std::cout << "didn't copy initial state" << std::endl;
@@ -64,5 +83,41 @@ Grid::Grid(int x_size, int y_size, bool *initial_state) {
 Grid::~Grid() {
     cudaFree(d_grid);
     cudaFree(d_next_grid);
+    cudaFreeHost(h_grid);
+    std::cout << "Freed grid" << std::endl;
+    std::cout << "Sizeof bool = " << sizeof(bool) << std::endl;
 }
 
+void Grid::step_forwards(int n_steps) {
+    auto thread_dims = dim3(h_grid_cols, h_grid_rows);
+
+    for (int i = 0; i < n_steps; i++) {
+        // Perform a step
+        GridProc::compute_cell<<<1, thread_dims>>>(d_grid, d_grid_pitch, d_next_grid, d_next_grid_pitch);
+        // TODO: copy boundaries
+
+        // swap pointers
+        bool *tmp_ptr = d_grid;
+        d_grid = d_next_grid;
+        d_next_grid = tmp_ptr;
+    }
+}
+
+void Grid::update_host_grid() {
+    cudaMemcpy2D(h_grid, h_grid_cols * sizeof(bool), d_grid, d_grid_pitch, h_grid_cols * sizeof(bool), h_grid_rows, cudaMemcpyDeviceToHost);
+}
+
+std::unique_ptr<bool[]> Grid::get_host_grid(bool reallign) {
+    if (!reallign) {
+        auto result_grid = std::make_unique<bool[]>(h_grid_cols*h_grid_rows);
+        memcpy(result_grid.get(), h_grid, h_grid_cols*h_grid_rows*sizeof(bool));
+        return std::move(result_grid);
+    }
+
+    // Reallign
+    auto result_grid = std::make_unique<bool[]>((h_grid_cols-2) * (h_grid_rows-2));
+    for (int j = 1; j < h_grid_rows-1; j++) {
+        memcpy(&result_grid[(j-1) * (h_grid_cols-2)], &h_grid[1 + (j * h_grid_cols)], (h_grid_cols-2)*sizeof(bool));
+    }
+    return std::move(result_grid);
+}
