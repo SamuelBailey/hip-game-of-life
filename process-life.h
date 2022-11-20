@@ -6,16 +6,26 @@
 
 #include <memory>
 
+void print();
+
 namespace GridProc {
+__global__
+void gpu_print();
 
 __global__
-void compute_cell(bool *initial_state, size_t initial_pitch, bool *final_state, size_t final_pitch);
+void compute_cell(bool *initial_state, size_t initial_pitch, bool *final_state, size_t final_pitch, char *instr, char *outstr);
 
 } /* namespace GridProc */
 
 class Grid{
 public:
     bool *h_grid;
+
+    // For debugging
+    char *h_instr;
+    char *d_instr;
+    char *h_outstr;
+    char *d_outstr;
 private:
     bool *d_grid;
     size_t d_grid_pitch;

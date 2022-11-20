@@ -9,7 +9,7 @@
 
 
 int main(int argc, char **argv) {
-    std::cout << "Hello, world!" << std::endl;
+    // std::cout << "Hello, world!" << std::endl;
 
     // Read in a file
     int x_len, y_len;
@@ -17,6 +17,8 @@ int main(int argc, char **argv) {
     if (!success) {
         return 1;
     }
+
+    // print();
 
     Grid grid(x_len, y_len, arr.get());
 

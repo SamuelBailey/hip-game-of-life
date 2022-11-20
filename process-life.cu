@@ -4,29 +4,123 @@
 
 #include <iostream>
 #include <memory>
+#include <stdio.h>
 #include "process-life.h"
+#include "gpu-helpers.h"
+
+
+__device__
+void my_reverse(char str[], int len)
+{
+    int start, end;
+    char temp;
+    for(start=0, end=len-1; start < end; start++, end--) {
+        temp = *(str+start);
+        *(str+start) = *(str+end);
+        *(str+end) = temp;
+    }
+}
+
+
+__device__
+char *my_itoa(int num, char* str, int base)
+{
+    int i = 0;
+    bool isNegative = false;
+  
+    /* A zero is same "0" string in all base */
+    if (num == 0) {
+        str[i] = '0';
+        str[i + 1] = '\0';
+        return str;
+    }
+  
+    /* negative numbers are only handled if base is 10 
+       otherwise considered unsigned number */
+    if (num < 0 && base == 10) {
+        isNegative = true;
+        num = -num;
+    }
+  
+    while (num != 0) {
+        int rem = num % base;
+        str[i++] = (rem > 9)? (rem-10) + 'A' : rem + '0';
+        num = num/base;
+    }
+  
+    /* Append negative sign for negative numbers */
+    if (isNegative){
+        str[i++] = '-';
+    }
+  
+    str[i] = '\0';
+ 
+    my_reverse(str, i);
+  
+    return str;
+}
+
+
+__device__
+int my_min(int a, int b) {
+    if (a < b) {
+        return a;
+    }
+    return b;
+}
+
+
+__device__
+char *my_strcpy(char *dest, const char *src) {
+    int i = 0;
+    do {
+        dest[i] = src[i];
+    } while (src[i++] != 0);
+    return dest;
+}
+
 
 #define GRID_VALUE(arr, col, row, pitch) \
     (reinterpret_cast<bool *>(reinterpret_cast<char *>(arr) + row*pitch))[col]
 
+void print() {
+    GridProc::gpu_print<<<1, 1>>>();
+}
+
 __global__
-void GridProc::compute_cell(bool *initial_state, size_t initial_pitch, bool *final_state, size_t final_pitch) {
+void GridProc::gpu_print() {
+    printf("Hello, world!\n");
+}
+
+
+__global__
+void GridProc::compute_cell(bool *initial_state, size_t initial_pitch, bool *final_state, size_t final_pitch, char *instr, char *outstr) {
     // For now, assume there are enough processors to have 1 for each cell
     // Need to start at [1, 1] instead of [0, 0] because of the boundaries
     int column = (blockIdx.x * blockDim.x) + threadIdx.x + 1;
     int row = (blockIdx.y * blockDim.y) + threadIdx.y + 1;
 
+    if (threadIdx.x == 0 && threadIdx.y == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
+        char tmp[] = "It's working!!! NAAAT.";
+        my_strcpy(outstr, tmp);
+    }
+    return;
+
     unsigned int count = 0;
-    for (int i = -1; i <= 1; i++) {
-        for (int j = -1; j <= 1; j++) {
+    for (int j = -1; j <= 1; j++) {
+        for (int i = -1; i <= 1; i++) {
             // Don't count the middle cell
             if (i == 0 && j == 0) {
                 continue;
+            }
+            if (threadIdx.x == 0 && threadIdx.y == 0) {
+                // printf("Block: %d, Thread: %d, reading from (%d, %d)\n", (int)threadIdx.x, (int)threadIdx.y, column+i, row+j);
             }
 
             count += GRID_VALUE(initial_state, column+i, row+j, initial_pitch);
         }
     }
+    return;
 
     // Set the result in the final_state array
 
@@ -52,10 +146,15 @@ Grid::Grid(int x_size, int y_size, bool *initial_state) {
     h_grid_cols = x_size + 2;
     h_grid_rows = y_size + 2;
 
+    cudaMalloc(reinterpret_cast<void **>(&d_instr), 100 * sizeof(char));
+    cudaMallocHost(reinterpret_cast<void **>(&h_instr), 100 * sizeof(char));
+    cudaMalloc(reinterpret_cast<void **>(&d_outstr), 100 * sizeof(char));
+    cudaMallocHost(reinterpret_cast<void **>(&h_outstr), 100 * sizeof(char));
+
     // Malloc grids
     cudaMallocPitch(reinterpret_cast<void **>(&d_grid), &d_grid_pitch, h_grid_cols * sizeof(bool), h_grid_rows);
     cudaMallocPitch(reinterpret_cast<void **>(&d_next_grid), &d_next_grid_pitch, h_grid_cols * sizeof(bool), h_grid_rows);
-    cudaMallocHost(reinterpret_cast<void **>(&h_grid), h_grid_rows * h_grid_cols * sizeof(bool));
+    cudaMallocHost(&h_grid, h_grid_rows * h_grid_cols * sizeof(bool));
 
     // Clear grids
     cudaMemset2D(d_grid, d_grid_pitch, false, h_grid_cols * sizeof(bool), h_grid_rows);
@@ -81,6 +180,9 @@ Grid::Grid(int x_size, int y_size, bool *initial_state) {
 }
 
 Grid::~Grid() {
+    cudaFree(d_outstr);
+    cudaFreeHost(h_outstr);
+
     cudaFree(d_grid);
     cudaFree(d_next_grid);
     cudaFreeHost(h_grid);
@@ -93,7 +195,10 @@ void Grid::step_forwards(int n_steps) {
 
     for (int i = 0; i < n_steps; i++) {
         // Perform a step
-        GridProc::compute_cell<<<1, thread_dims>>>(d_grid, d_grid_pitch, d_next_grid, d_next_grid_pitch);
+        GridProc::compute_cell<<<1, thread_dims>>>(d_grid, d_grid_pitch, d_next_grid, d_next_grid_pitch, d_instr, d_outstr);
+        cudaMemcpy(h_outstr, d_outstr, 100, cudaMemcpyDeviceToHost);
+
+        std::cout << "OUTSTR: " << h_outstr << std::endl;
         // TODO: copy boundaries
 
         // swap pointers

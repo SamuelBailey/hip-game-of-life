@@ -3,7 +3,7 @@
 HIPIFY=hipify-clang
 CXX=hipcc
 
-CXX_FLAGS = -O3 -std=c++17 -Wno-unused-value
+CXX_FLAGS = -O0 -std=c++17 -Wno-unused-value -ggdb
 
 HEADERS = $(wildcard *.h)
 
