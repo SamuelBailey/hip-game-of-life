@@ -3,7 +3,8 @@
 HIPIFY=hipify-clang
 CXX=hipcc
 
-CXX_FLAGS = -O0 -std=c++17 -Wno-unused-value -ggdb
+CXX_FLAGS = -O0 -std=c++17 -Wno-unused-value -ggdb -fgpu-rdc 
+LINKER_FLAGS = -fgpu-rdc --hip-link
 
 HEADERS = $(wildcard *.h)
 
@@ -23,7 +24,7 @@ CPP_FILES = $(wildcard *.cpp)
 OBJS = $(HIP_FILES:.hip=.o) $(CPP_FILES:.cpp=.o)
 
 life: $(OBJS)
-	$(CXX) -o $@ $^
+	$(CXX) -o $@ $^ $(LINKER_FLAGS)
 
 clean:
 	rm $(OBJS) life test $(TEST_OBJS)

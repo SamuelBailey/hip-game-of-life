@@ -6,7 +6,7 @@
 #include <memory>
 #include "read-file.h"
 #include "process-life.h"
-
+#include "gpu-helpers.h"
 
 int main(int argc, char **argv) {
     // std::cout << "Hello, world!" << std::endl;
@@ -28,4 +28,7 @@ int main(int argc, char **argv) {
 
     file::write_arr_to_file(result.get(), x_len, y_len, "data/outputs/result.txt");
 
+    char value[100] = {0};
+    my_itoa(457, value, 10);
+    std::cout << "number: " << value << std::endl;
 }
